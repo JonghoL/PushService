@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Configuration;
 using System.IO;
 using System.Net.Http.Formatting;
 using System.Web;
@@ -21,7 +22,8 @@ namespace PushService.Controllers
         {
             var path = System.Web.Hosting.HostingEnvironment.ApplicationPhysicalPath;
             var appleCert = File.ReadAllBytes(Path.Combine(path, "cert/Certificates.p12"));
-            pushBroker.RegisterAppleService(new ApplePushChannelSettings(appleCert, "P@ssw0rd"));
+            var certPwd = ConfigurationManager.AppSettings["certificateFilePwd"];
+            pushBroker.RegisterAppleService(new ApplePushChannelSettings(appleCert, certPwd));
         }
 
         public void Post(FormDataCollection form)
