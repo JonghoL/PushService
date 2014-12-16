@@ -45,6 +45,7 @@ namespace PushService.App_Start
             kernel.Bind<PushSharp.PushBroker>().To<PushSharp.PushBroker>();
 
             RegisterServices(kernel);
+
             return kernel;
         }
 
