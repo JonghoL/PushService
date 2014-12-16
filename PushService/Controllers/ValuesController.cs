@@ -7,7 +7,6 @@ using System.Web.Http;
 
 namespace PushService.Controllers
 {
-    //[Authorize]
     public class ValuesController : ApiController
     {
         // GET api/values
