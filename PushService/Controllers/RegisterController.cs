@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Formatting;
+using System.Text;
 using System.Web.Http;
 
 namespace PushService.Controllers
@@ -31,14 +32,66 @@ namespace PushService.Controllers
 
         public string Get(string id)
         {
-            return this.Redis.GetString(id);
+            if (id.Length == 64)
+            {
+                var prevUserData = this.Redis.Get(id);
+                if (prevUserData == null)
+                {
+                    return "Empty";
+                }
+                return Encoding.UTF8.GetString(prevUserData);
+            }
+            else
+            {
+                var deviceTokens = this.Redis.ListRange(id, 0, -1);
+                var deviceTokenList = new List<string>(deviceTokens.Length);
+                for (int i = 0; i < deviceTokens.Length; i++)
+                {
+                    var curDeviceToken = deviceTokens[i];
+                    deviceTokenList.Add(Encoding.UTF8.GetString(curDeviceToken));
+                }
+                var sb = new StringBuilder();
+                foreach (var dt in deviceTokenList)
+                {
+                    sb.AppendLine(dt);
+                }
+
+                return sb.ToString();
+            }
         }
 
         public void Post(FormDataCollection form)
         {
-            var key = form["key"];
-            var value = form["value"];
-            this.Redis.Set(key, value);
+            var userId = form["key"]; 
+            var deviceToken = form["value"];
+
+            var prevUserData = this.Redis.Get(deviceToken);
+            if (prevUserData == null)
+            {
+                this.Redis.RightPush(userId, deviceToken); //list
+                this.Redis.Set(deviceToken, userId); //key-value
+            }
+            else
+            {
+                var prevUser = Encoding.UTF8.GetString(prevUserData);
+                var deviceTokens = this.Redis.ListRange(prevUser, 0, -1);
+                var deviceTokenList = new List<string>(deviceTokens.Length);
+                for (int i = 0; i < deviceTokens.Length; i++)
+                {
+                    var curDeviceToken = deviceTokens[i];
+                    deviceTokenList.Add(Encoding.UTF8.GetString(curDeviceToken));
+                }
+                if (prevUser != userId)
+                {
+                    if (deviceTokenList.Exists(t => t == deviceToken))
+                    {
+                        this.Redis.ListRemove(prevUser, deviceToken);
+                    }
+                    this.Redis.RightPush(userId, deviceToken); //list
+                }
+
+                this.Redis.Set(deviceToken, userId); //update
+            }
         }
     }
 }

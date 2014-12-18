@@ -793,6 +793,13 @@ public class Redis : IDisposable
         return ReadData();
     }
 
+    public void ListRemove(string key, string value)
+    {
+        SendCommand("LREM", key, -1, value);
+        ExpectSuccess();
+    }
+
+
     public byte[] LeftPop(string key)
     {
         SendCommand("LPOP", key);
