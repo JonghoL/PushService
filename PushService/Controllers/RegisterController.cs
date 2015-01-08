@@ -31,7 +31,14 @@ namespace PushService.Controllers
         {
             using (var redis = new RedisClient(this.redis_host, this.redis_port, this.redis_password))
             {
-                return redis.Keys("*").Select(b => Encoding.UTF8.GetString(b));
+                var users = redis.LRange("users", 0, -1);
+                var userList = new List<string>(users.Length);
+                for (int i = 0; i < users.Length; i++)
+                {
+                    var curUser = users[i];
+                    userList.Add(Encoding.UTF8.GetString(curUser));
+                }
+                return userList;
             }
         }
 
@@ -74,16 +81,18 @@ namespace PushService.Controllers
             {
                 var userId = form["key"];
                 var deviceToken = form["value"];
+                var device = form["device"];
 
                 var prevUserData = redis.Get(deviceToken);
                 if (prevUserData == null)
                 {
                     redis.RPush(userId, deviceToken.ToUtf8Bytes()); //list
-                    redis.Set(deviceToken, userId); //key-value
+                    redis.SetEntry(deviceToken, userId + "," + device); //key-value
                 }
                 else
                 {
-                    var prevUser = Encoding.UTF8.GetString(prevUserData);
+                    var prevUserDataString = Encoding.UTF8.GetString(prevUserData);
+                    var prevUser = prevUserDataString.Split(',').FirstOrDefault();
                     var deviceTokens = redis.LRange(prevUser, 0, -1);
                     var deviceTokenList = new List<string>(deviceTokens.Length);
                     for (int i = 0; i < deviceTokens.Length; i++)
@@ -100,7 +109,19 @@ namespace PushService.Controllers
                         redis.RPush(userId, deviceToken.ToUtf8Bytes()); //list
                     }
 
-                    redis.Set(deviceToken, userId); //update
+                    redis.SetEntry(deviceToken, userId +","+device); //update
+                }
+
+                var users = redis.LRange("users", 0, -1);
+                var userList = new List<string>(users.Length);
+                for (int i = 0; i < users.Length; i++)
+                {
+                    var curUser = users[i];
+                    userList.Add(Encoding.UTF8.GetString(curUser));
+                }
+                if (!userList.Contains(userId)) 
+                {
+                    redis.RPush("users", userId.ToUtf8Bytes()); //list
                 }
             }
         }
